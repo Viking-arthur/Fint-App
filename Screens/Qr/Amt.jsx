@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, Pressable, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, Pressable, TouchableOpacity, Image,  } from 'react-native';
 import Background from '../../Components/Bg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,9 +10,11 @@ const Amt = () => {
 
   const handleGenerate = () => {
     if (!amount || isNaN(amount)) {
-      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      // Show an alert if no amount is entered or if the entered value is not a number
+      Alert.alert("Invalid Amount", "Please enter a valid numeric amount.");
     } else {
-      Alert.alert('Amount Entered', `Amount: ₹ ${amount}`);
+      // Navigate to the QrCode page and pass the amount as a parameter
+      navigation.navigate("QrCode", { amount });
     }
   };
 
@@ -42,7 +44,10 @@ const Amt = () => {
           onChangeText={setAmount}
         />
         
-        <TouchableOpacity style={styles.generateButton} onPress={() => navigation.navigate('QrCode')}>
+        <TouchableOpacity
+          style={styles.generateButton}
+          onPress={handleGenerate}
+        >
           <Text style={styles.generateText}>Generate</Text>
         </TouchableOpacity>
       </View>

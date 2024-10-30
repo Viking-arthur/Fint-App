@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useFonts } from 'expo-font';
 
 import Login from './Screens/Login/Login';
 import SignUp from './Screens/Login/SignUp';
-import Email from './Screens/Login/Email';
+import ForgotPassword from './Screens/Login/ForgotPassword.jsx';
+import ResetPassword from './Screens/Login/ResetPassword.jsx';
 import Otp from './Screens/Login/Otp';
 import Home from './Components/Home';
 import Profile from './Screens/Profile';
@@ -23,21 +23,17 @@ import BannerSilver from './Screens/AdMobs/BannerSilver';
 import BannerGold from './Screens/AdMobs/BannerGold';
 import Coupons from './Screens/AdMobs/Coupons';
 import Affiliates from './Screens/Affiliaters/Affiliaters';
-import FreelanceLogin from './Screens/Freelance/FreelanceLogin';
-import ExistAcc from './Screens/Freelance/ExistAcc';
+import FreelanceSignup from './Screens/Freelance/FreelanceSignup.jsx';
+import FreelanceLogin from './Screens/Freelance/FreelanceLogin.jsx';
 import Username from './Screens/Freelance/Username';
 import AccType from './Screens/Freelance/AccType';
 import WorkHomePage from './Screens/Freelance/WorkHomePage';
 import HireHomePage from './Screens/Freelance/HireHomePage';
 import WorkProfile from './Screens/Freelance/WorkProfile';
-import HireProfile from './Screens/Freelance/HireProfile';
-import StrikeCart from './Screens/Freelance/StrikeCart';
 import EditWorkProfile from './Screens/Freelance/EditWorkProfile';
 
 import Profile1 from './Screens/Freelance/Profile1';
-import Profile2 from './Screens/Freelance/Profile2';
 import HiringProfile1 from './Screens/Freelance/HiringProfile1';
-import HiringProfile2 from './Screens/Freelance/HiringProfile2';
 
 import ComingSoon from './Screens/AdMobs/ComingSoon';
 
@@ -48,7 +44,7 @@ const App = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
+      <Stack.Navigator initialRouteName="Login">
         <Stack.Screen
           name="Login"
           component={Login}
@@ -60,8 +56,13 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="Email"
-          component={Email}
+          name="ForgotPassword"
+          component={ForgotPassword}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPassword}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -155,13 +156,13 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="FreelanceLogin"
-          component={FreelanceLogin}
+          name="FreelanceSignup"
+          component={FreelanceSignup}
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="ExistAcc"
-          component={ExistAcc}
+          name="FreelanceLogin"
+          component={FreelanceLogin}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -190,16 +191,6 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="HireProfile"
-          component={HireProfile}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="StrikeCart"
-          component={StrikeCart}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
           name="EditWorkProfile"
           component={EditWorkProfile}
           options={{ headerShown: false }}
@@ -210,18 +201,8 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="Profile2"
-          component={Profile2}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
           name="HiringProfile1"
           component={HiringProfile1}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="HiringProfile2"
-          component={HiringProfile2}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

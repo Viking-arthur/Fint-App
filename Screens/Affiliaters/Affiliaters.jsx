@@ -1,56 +1,88 @@
-import React from "react";
-import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Text, Pressable, ScrollView, ActivityIndicator, Share, TouchableOpacity} from "react-native";
 import { Image } from "expo-image";
 import Icon from 'react-native-vector-icons/Ionicons';  // Import Ionicons for icons
 import Background from '../../Components/Bg';  // Ensure this is properly imported
+import axiosInstance from "../../axiosInstance";
 
 const Affiliates = ({ navigation }) => {
-  const storeData = [
-    {
-      name: "Amazon Store",
-      profit: "Upto 8% Profit",
-      image: require("../../assets/amazon.png"),
-    },
-    {
-      name: "Apple Store",
-      profit: "Upto 2% Profit",
-      image: require("../../assets/apple.png"),
-    },
-    {
-      name: "Nike Store",
-      profit: "Flat 8% Discount",
-      image: require("../../assets/nike.png"),
-    },
-    {
-      name: "Flipkart Store",
-      profit: "Upto 8% Profit",
-      image: require("../../assets/flipkart.png"),
-    },
-    {
-      name: "Udemy",
-      profit: "Upto 8% Off",
-      image: require("../../assets/udemy.png"),
-    },
-  ];
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const response = await axiosInstance.get("/auth/Affiliate");
+        setLinks(response.data);
+      } catch (error) {
+        console.error("Error fetching affiliate links:", error);
+        setError("Failed to load affiliate links.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchLinks();
+  }, []);
+
+  
+  const handleShare = async (link) => {
+    try {
+      await Share.share({
+        message: `Check out this affiliate: ${link}`,
+      });
+    } catch (error) {
+      console.error("Error sharing the link:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <Background>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
             <Icon name="arrow-back-circle-outline" size={34} color="#fff" />
           </Pressable>
           <Text style={styles.title}>Affiliates</Text>
         </View>
-        {storeData.map((store, index) => (
-          <Pressable key={index} style={styles.storeItem}>
-            <Image source={store.image} style={styles.storeImage} />
+        {links.map((store, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.storeItem}
+            onPress={() => handleShare(store.link)}
+          >
+            <Image source={{ uri: store.image }} style={styles.storeImage} />
             <View style={styles.storeText}>
-              <Text style={styles.storeName}>{store.name}</Text>
-              <Text style={styles.storeProfit}>{store.profit}</Text>
+              <Text style={styles.storeName}>{store.description}</Text>
             </View>
-            <Icon name="chevron-forward-outline" size={24} color="#000" style={styles.chevronIcon} />
-          </Pressable>
+            <Icon
+              name="chevron-forward-outline"
+              size={24}
+              color="#000"
+              style={styles.chevronIcon}
+            />
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </Background>
@@ -121,6 +153,24 @@ const styles = StyleSheet.create({
   },
   chevronIcon: {
     marginLeft: 10,  // Spacing between text and icon
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 20,
+    color: "#fff",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: {
+    fontSize: 20,
+    color: "red",
   },
 });
 

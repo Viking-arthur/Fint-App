@@ -1,24 +1,57 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  ScrollView,
   Alert,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard'; // Clipboard API from Expo
+import * as Clipboard from 'expo-clipboard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Background from '../Components/Bg';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axiosInstance from "../axiosInstance";
 
 const Profile = () => {
+  const [userData, setUserData] = useState({});
+  const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        console.log("Token:", token);
+
+        if (!token) {
+          alert("Login Failed");
+          navigation.navigate("Login");
+          return;
+        }
+
+        // Fetch user profile using the token, no need for userId
+        const response = await axiosInstance.get(`/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("User data response:", response.data);
+        setUserData(response.data);
+      } catch (error) {
+        console.error("Failed to fetch user data", error.message);
+        alert("Failed to fetch user data, please try again");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [navigation]);
 
   const handleCopyUPI = () => {
     const upiId = 'xyz@oksbi';
-    Clipboard.setStringAsync(upiId); // Copy UPI ID to clipboard
+    Clipboard.setStringAsync(upiId);
     Alert.alert('Copied', 'UPI ID copied to clipboard');
   };
 
@@ -33,23 +66,16 @@ const Profile = () => {
         </Pressable>
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
+
       <View style={styles.container}>
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <Icon name="person-circle-outline" size={100} color="#CCCCCC" />
-          <Text style={styles.profileName}>Badri R</Text>
-
-          {/* UPI ID Section */}
-          <View style={styles.upiBox}>
-            <Text style={styles.upiText}>UPI ID: xyz@oksbi</Text>
-            <Pressable onPress={handleCopyUPI} style={styles.iconContainer}>
-              <Icon name="copy-outline" size={24} color="#fff" />
-            </Pressable>
-          </View>
-
-          <View style={styles.pincodeContainer}>
-            <Text style={styles.pincodeLabel}>Pincode: </Text>
-            <Text style={styles.pincode}>563122</Text>
+          <Text style={styles.profileName}>{userData?.fullName}</Text>
+          
+          {/* Email Section */}
+          <View style={styles.emailContainer}>
+            <Text style={styles.email}>{userData?.email}</Text>
           </View>
         </View>
 
@@ -107,11 +133,14 @@ const Profile = () => {
         </View>
       </View>
 
-      {/* Fixed Log-out Container at the Bottom */}
+      {/* Log-out Container */}
       <View style={styles.logoutContainer}>
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={() => navigation.navigate('Login')}>
+          onPress={async () => {
+            await AsyncStorage.removeItem("authToken");
+            navigation.navigate("Login");
+          }}>
           <Text style={styles.logoutText}>Log-out</Text>
         </TouchableOpacity>
       </View>
@@ -152,39 +181,21 @@ const styles = StyleSheet.create({
     color: 'white',
     marginTop: 10,
   },
-  upiBox: {
+  emailContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
     backgroundColor: '#1B3B6F',
-    paddingVertical: 12, // Increased vertical padding
-    paddingHorizontal: 22, // Increased horizontal padding
-    borderRadius: 10,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#FFF',
-  },
-  upiText: {
-    fontSize: 16,
-    color: '#CCCCCC',
-    marginRight: 10,
-  },
-  pincodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    backgroundColor: '#1B3B6F',
-    paddingVertical: 10, // Increased vertical padding
-    paddingHorizontal: 22, // Increased horizontal padding
+    paddingVertical: 5,
+    paddingHorizontal: 15,
     borderRadius: 10,
   },
-  pincode: {
-    fontSize: 20,
-    color: 'white',
-    marginRight: 5,
-  },
-  pincodeLabel: {
+  email: {
     fontSize: 14,
-    color: '#CCCCCC',
+    fontWeight: 'bold',
+    color: 'white',
+    marginTop: 10,
   },
   menuSection: {
     backgroundColor: '#000',
@@ -194,7 +205,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 100,
     borderWidth: 2,
     borderColor: '#fff',
-    marginBottom: 50, // Ensure there's space for the logout button
+    marginBottom: 50,
+    marginTop: 60,
   },
   menuItem: {
     flexDirection: 'row',
@@ -207,7 +219,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   menuText: {
-    paddingLeft: 10, // Increased padding to make space for icon
+    paddingLeft: 10,
     fontSize: 18,
     color: 'white',
   },
@@ -236,11 +248,11 @@ const styles = StyleSheet.create({
     borderTopColor: '#D9534F',
   },
   iconContainer: {
-    marginLeft: 'auto', // Pushes icon to the end
-    marginRight: 10, // Space from right border
+    marginLeft: 'auto',
+    marginRight: 10,
   },
   iconMargin: {
-    marginRight: 10, // Space from text
+    marginRight: 10,
   },
 });
 

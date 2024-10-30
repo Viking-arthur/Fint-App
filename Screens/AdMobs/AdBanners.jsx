@@ -1,9 +1,11 @@
 import React, { useState } from 'react'; 
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, ScrollView, Pressable, Linking, Alert, Button } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, ScrollView, Pressable, Linking, Alert, Button, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Background from '../../Components/Bg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import axiosInstance from "../../axiosInstance";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CustomCheckBox = ({ isChecked, onValueChange }) => {
   return (
@@ -15,10 +17,67 @@ const CustomCheckBox = ({ isChecked, onValueChange }) => {
 
 const AdBanners = () => {
   const [image, setImage] = useState(null);
-  const [offerDetails, setOfferDetails] = useState('');
+  const [businessName, setBusinessName] = useState(''); // State for business name
+  const [description, setDescription] = useState('');
   const [isChecked, setIsChecked] = useState(false);
+  const [link, setLink] = useState("");
   const [checkboxError, setCheckboxError] = useState(''); // Error state for the checkbox
+  const [loading, setLoading] = useState(false); // Loading state
   const navigation = useNavigation();
+
+  const handleCreateAd = async () => {
+    if (!isChecked) {
+      setCheckboxError("You must agree to the terms to proceed.");
+    } else if (!businessName.trim()) {
+      Alert.alert("Error", "Business name cannot be empty.");
+    } else if (!description.trim()) {
+      Alert.alert("Error", "description cannot be empty.");
+    } else {
+      setCheckboxError("");
+  
+      const adData = {
+        businessName,
+        description,
+        link,
+      };
+      
+      console.log("Ad data to be sent:", adData); // Log adData
+  
+      try {
+        const token = await AsyncStorage.getItem("token");
+        console.log("Retrieved token:", token); // Log token
+        
+        if (!token) {
+          Alert.alert("Error", "No token found. Please log in.");
+          return;
+        }
+      
+        const response = await axiosInstance.post("/admob/ads", adData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      console.log(response);
+      
+        if (response.status === 200) {
+          navigation.navigate("BannersPackage", { businessName, description });
+        }
+      } catch (error) {
+        console.error("Error creating ad:", error);
+        if (error.response) {
+          console.error("Response data:", error.response.data);
+          console.error("Response status:", error.response.status);
+          console.error("Response headers:", error.response.headers);
+          if (error.response.status === 401) {
+            Alert.alert("Session expired", "Please log in again.");
+          }
+        } else {
+          Alert.alert("Error", "Something went wrong. Please try again later.");
+        }
+      }      
+    }
+  };
+     
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -30,15 +89,6 @@ const AdBanners = () => {
 
     if (!result.canceled) {
       setImage(result.uri);
-    }
-  };
-
-  const handleCreateAd = () => {
-    if (!isChecked) {
-      setCheckboxError('You must agree to the terms to proceed.'); // Set error message
-    } else {
-      setCheckboxError(''); // Clear error if checkbox is checked
-      navigation.navigate('BannersPackage'); // Proceed to the next screen
     }
   };
 
@@ -70,6 +120,18 @@ const AdBanners = () => {
         </TouchableOpacity>
         <Text style={styles.uploadText}>Upload image</Text>
 
+        {/* Business Name Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Business Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter Business Name"
+            placeholderTextColor="#CCCCCC"
+            value={businessName}
+            onChangeText={setBusinessName}
+          />
+        </View>
+
         {/* Offer Input Fields */}
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Enter Details</Text>
@@ -77,11 +139,24 @@ const AdBanners = () => {
             style={styles.adDetailsInput}
             placeholder="Enter Ad details..."
             placeholderTextColor="#CCCCCC"
-            value={offerDetails}
-            onChangeText={setOfferDetails}
+            value={description}
+            onChangeText={setDescription}
             multiline={true}
             textAlignVertical="top"
             numberOfLines={4}
+          />
+        </View>
+
+        {/* Link Input Field */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Link (optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter a valid URL (optional)"
+            placeholderTextColor="#CCCCCC"
+            value={link}
+            onChangeText={setLink}
+            keyboardType="url"
           />
         </View>
 
@@ -101,14 +176,18 @@ const AdBanners = () => {
         {/* Display Checkbox Error */}
         {checkboxError ? <Text style={styles.errorText}>{checkboxError}</Text> : null}
 
-
-{/* Create Ads Button */}
-<Button 
-  title="Create Ads" 
-  onPress={handleCreateAd} 
-  color={styles.createButton.backgroundColor}
-/>
-
+        {/* Create Ads Button */}
+        <TouchableOpacity 
+          style={styles.createButton} 
+          onPress={handleCreateAd}
+          disabled={loading} // Disable button while loading
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" /> // Show loading indicator
+          ) : (
+            <Text style={styles.createButtonText}>Create Ads</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
     </Background>
@@ -174,6 +253,15 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 5,
   },
+  input: {
+    height: 50,
+    backgroundColor: '#002D6F',
+    padding: 10,
+    color: 'white',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FA9746',
+  },
   adDetailsInput: {
     height: 150,
     backgroundColor: '#002D6F',
@@ -233,4 +321,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdBanners;
+export default AdBanners; 

@@ -1,41 +1,123 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Linking, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Linking, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons'; // Remove if not used elsewhere
 import Background from '../../Components/Bg';
+import axiosInstance from "../../axiosInstance";
+import { z } from "zod";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const signUpSchema = z.object({
+  fullName: z.string().nonempty("Full name is required"),
+  phoneNumber: z
+    .string()
+    .nonempty("Phone number is required")
+    .length(10, "Phone number must be 10 digits"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+  confirmPassword: z
+    .string()
+    .min(8, "Confirm Password must be at least 8 characters long"),
+});
 
 const SignUp = () => {
   const navigation = useNavigation();
-  const [name, setName] = useState('');
-  const [phoneNo, setPhoneNo] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isChecked, setIsChecked] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = () => {
+  // Single state for toggling password visibility for both fields
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSignUp = async () => {
     if (!isChecked) {
-      alert('Please agree to the terms and conditions');
+      Alert.alert("Error", "Please agree to the terms and conditions");
       return;
     }
 
     if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Passwords do not match",
+      }));
       return;
     }
 
-    setPasswordError('');
+    setErrors({});
+    setLoading(true);
 
-    // Handle the sign-up logic here
-    console.log('User Info:', {
-      name,
-      phoneNo,
-      password,
-    });
+    try {
+      const validationResult = signUpSchema.safeParse({
+        fullName,
+        phoneNumber,
+        email,
+        password,
+        confirmPassword,
+      });
+
+      if (!validationResult.success) {
+        const validationErrors = validationResult.error.format();
+        setErrors({
+          fullName: validationErrors.fullName?._errors[0],
+          phoneNumber: validationErrors.phoneNumber?._errors[0],
+          email: validationErrors.email?._errors[0],
+          password: validationErrors.password?._errors[0],
+          confirmPassword: validationErrors.confirmPassword?._errors[0],
+        });
+        return;
+      }
+
+      const response = await axiosInstance.post("/auth/register", {
+        fullName,
+        phoneNumber,
+        email,
+        password,
+      });
+
+      if (response.data?.token) {
+        const { token } = response.data;
+
+        // Store the token in AsyncStorage
+        await AsyncStorage.setItem("token", token);
+        await AsyncStorage.setItem("userEmail", email);
+
+        // Alert.alert("Success", "Account created successfully");
+        navigation.navigate("Otp", { email }); // Navigate to the OTP page after signup
+      } else {
+        Alert.alert("Error", "Unexpected server response");
+      }
+    } catch (error) {
+      console.error("Sign Up Error:", error);
+
+      if (error.response) {
+        if (error.response.status === 409) {
+          Alert.alert(
+            "Error",
+            "User with this email or phone number already exists."
+          );
+        } else {
+          Alert.alert(
+            "Error",
+              "Failed to sign up. Please try again."
+          );
+        }
+      } else if (error.request) {
+        Alert.alert("Error", "Network error. Please check your connection.");
+      } else {
+        Alert.alert("Error", "Failed to sign up. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTermsPress = () => {
-    Linking.openURL('https://www.example.com/terms'); // Replace with your actual terms URL
+    Linking.openURL("https://www.example.com/terms"); // Replace with your actual terms URL
   };
 
   return (
@@ -49,7 +131,7 @@ const SignUp = () => {
             {/* Logo Image */}
             <Image source={require('../../assets/Fintlogo.jpg')} style={styles.logoImage} />
             {/* Logo Text */}
-            <Text style={styles.logo}>FINT</Text>
+            <Text style={styles.logoText}>FINT</Text>
           </View>
 
           {/* Create a box around the form elements */}
@@ -58,33 +140,74 @@ const SignUp = () => {
 
             <TextInput
               style={styles.input}
-              placeholder="Name"
-              value={name}
-              onChangeText={setName}
+              placeholder="Full Name"
+              value={fullName}
+              onChangeText={setFullName}
             />
+            {errors.fullName && (
+              <Text style={styles.errorText}>{errors.fullName}</Text>
+            )}
+
             <TextInput
               style={styles.input}
               placeholder="Phone No"
-              value={phoneNo}
-              onChangeText={setPhoneNo}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
             />
+            {errors.phoneNumber && (
+              <Text style={styles.errorText}>{errors.phoneNumber}</Text>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            )}
+            
+            {/* Password Input */}
             <TextInput
               style={styles.input}
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
             />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            )}
+
+            {/* Confirm Password Input */}
             <TextInput
               style={styles.input}
               placeholder="Confirm Password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
             />
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            )}
 
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            {/* Show Password Checkbox */}
+            <View style={styles.showPasswordContainer}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                {showPassword && (
+                  <Ionicons name="checkmark" size={24} color="#0088FF" />
+                )}
+              </TouchableOpacity>
+              <Text style={styles.showPasswordText}>
+                Show Password
+              </Text>
+            </View>
 
             {/* Checkbox Section */}
             <View style={styles.checkboxContainer}>
@@ -97,16 +220,24 @@ const SignUp = () => {
                 )}
               </TouchableOpacity>
               <Text style={styles.checkboxLabel}>
-                I agree to the{' '}
+                I agree to the{" "}
                 <Text style={styles.link} onPress={handleTermsPress}>
                   terms and conditions
                 </Text>
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-              <Text style={styles.buttonText}>Sign-Up</Text>
-            </TouchableOpacity>
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color="#0a66e1"
+                style={styles.loading}
+              />
+            ) : (
+              <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+                <Text style={styles.buttonText}>Sign-Up</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -138,14 +269,14 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 100,
     height: 100,
-    marginBottom: 10,
-  },
-  logo: {
-    width: 100,
-    height: 100,
     borderRadius: 50,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginVertical: 20,
+  },
+  logoText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: 'white',
   },
   formContainer: {
     width: 350,
@@ -169,11 +300,11 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     borderRadius: 5,
   },
-  checkboxContainer: {
+  showPasswordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    width: '80%',
+    marginTop: 5,
+    marginBottom: 10,
   },
   checkbox: {
     height: 24,
@@ -184,6 +315,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+  },
+  showPasswordText: {
+    marginLeft: 10,
+    color: 'gray',
+    fontSize: 14,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '80%',
   },
   checkboxLabel: {
     fontSize: 14,

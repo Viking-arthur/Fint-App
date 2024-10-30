@@ -1,0 +1,50 @@
+name: "fint"
+run-name: ${{ github.actor }} is learning to build an Android App using GitHub Actions
+on: 
+  push:
+    branches:
+      - develop-uat
+  pull_request: 
+    branches:
+      - develop-uat
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Java 
+        uses: actions/setup-java@v2
+        with:
+          java-version: '20'
+          distribution: "adopt"
+          cache: "gradle"
+
+      - name: Change wrapper permissions
+        run: icacls ./android/gradlew /grant:r "$($env:USERNAME):(RX)"
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: 
+          node-version: '20'
+
+      - name: Run Yarn Install
+        run: | 
+              npm install -g yarn
+              yarn install
+
+      - name: Build App
+        run: |
+              cd ./android
+              ./gradlew assembleRelease
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v2
+        with: 
+            name: app
+            path: ./android/app/build/outputs/apk/release/app-release.apk
+            retention-days: 3

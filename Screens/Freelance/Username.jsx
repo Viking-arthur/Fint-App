@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,49 @@ import {
 } from 'react-native';
 import Background from '../../Components/Bg';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from "@react-navigation/native";
+import axiosInstance from "../../axiosInstance";
+
 
 const Username = () => {
+  const [username, setUsername] = useState("");
   const navigation = useNavigation();
+  const router = useRoute();
+  const { userId } = router.params
+
+  
+  // Extract data passed from FlLogin screen
+  const { email, fullName, phoneNumber, password, skills } = router.params;
+
+  const handleNext = async () => {
+    try {
+      // Define your backend endpoint
+
+      // Sending data using axios
+      const response = await axiosInstance.post("/freelance/signup", {
+        email,
+        fullName,
+        phoneNumber,
+        password,
+        skills,
+        username,
+      });
+      
+
+      // Handling the response
+      if (response.status === 200) {
+        Alert.alert("Success", "Registration successful!");
+        navigation.navigate("WorkProfile", { userId });
+      } else {
+        Alert.alert("Error","Registration failed.");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      Alert.alert(
+        "Error","Something went wrong. Please try again."
+      );
+    }
+  };
  
   return (
     <Background>
@@ -50,13 +89,14 @@ const Username = () => {
               style={styles.input}
               placeholder="Username"
               placeholderTextColor="#888"
+          value={username}
+          onChangeText={setUsername}
             />
           </View>
 
-          {/* Next Button */}
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('WorkHomePage')}>
-            <Text style={styles.buttonText}>Next</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleNext}>
+          <Text style={styles.buttonText}>Next</Text>
+        </TouchableOpacity>
         </View>
       </View>
 

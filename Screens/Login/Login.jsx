@@ -1,41 +1,93 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator } from 'react-native';
 import Background from '../../Components/Bg';
+import axiosInstance from "../../axiosInstance";
+import { z } from "zod";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from 'react-native-vector-icons/MaterialIcons'; // Import an icon library (optional)
+
+const loginSchema = z.object({
+  phoneNumber: z
+    .string()
+    .nonempty("Phone number is required")
+    .length(10, "Phone number must be 10 digits"),
+  password: z.string().nonempty("Password is required"),
+});
 
 const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [phoneNumberError, setPhoneNumberError] = useState("");
+  const [loading, setLoading] = useState(false); // Loading state
+  const [showPassword, setShowPassword] = useState(false); // Track password visibility
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const handleLogin = async () => {
+    // Validate form data
+    const validationResult = loginSchema.safeParse({
+      phoneNumber,
+      password,
+    });
 
-  const handleLogin = () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter your email & password');
+    if (!validationResult.success) {
+      const validationErrors = validationResult.error.format();
+      setPhoneNumberError(validationErrors.phoneNumber?._errors[0]);
       return;
     }
 
-    if (!validateEmail(email)) {
-      setEmailError('Please enter a valid email address');
-      return;
+    // Reset error if validation is successful
+    setPhoneNumberError("");
+
+    setLoading(true); // Start loading
+
+    try {
+      // Perform API request
+      const response = await axiosInstance.post("/auth/login", {
+        phoneNumber,
+        password,
+      });
+
+      console.log("Login Response:", response.data);
+
+      // Check for successful response
+      if (response.data && response.data.token) {
+        const { token } = response.data;
+
+        // Store the token in AsyncStorage
+        try {
+          await AsyncStorage.setItem("token", token);
+          console.log("Token stored successfully");
+
+          Alert.alert("Login Success", "Please Proceed", [
+            {
+              text: "OK",
+              onPress: () => {
+                setLoading(false); // Stop loading
+                navigation.navigate("Home");
+              },
+            },
+          ]);
+        } catch (error) {
+          console.error("Failed to store token in AsyncStorage:", error);
+          Alert.alert("Storage Error", "Failed to store token. Please try again.");
+        }
+      } else {
+        Alert.alert("Error", "Unexpected server response");
+        setLoading(false); // Stop loading
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      setLoading(false); // Stop loading
+      if (error.response) {
+        Alert.alert(
+          "Error",
+          error.response.data?.message || "Failed to login. Please try again."
+        );
+      } else if (error.request) {
+        Alert.alert("Error", "Network error. Please check your connection.");
+      } else {
+        Alert.alert("Error", "Failed to login. Please try again.");
+      }
     }
-
-    // Reset error if email is valid
-    setEmailError('');
-
-    Alert.alert(
-      'Login Success',
-      'Please Proceed',
-      [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Home'), // Navigate to the 'Home' page
-        },
-      ]
-    );
   };
 
   return (
@@ -56,35 +108,65 @@ const Login = ({ navigation }) => {
             <Text style={styles.title}>Login</Text>
 
             <TextInput
-              style={[styles.input, emailError && { borderColor: 'red' }]}
-              placeholder="Email"
+              style={[styles.input, phoneNumberError && { borderColor: "red" }]}
+              placeholder="Phone Number"
               placeholderTextColor="#ccc"
-              value={email}
+              value={phoneNumber}
               onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError(''); // Reset error on input change
+                setPhoneNumber(text);
+                if (phoneNumberError) setPhoneNumberError(""); // Reset error on input change
               }}
+              keyboardType="phone-pad"
             />
 
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+            {phoneNumberError ? (
+              <Text style={styles.errorText}>{phoneNumberError}</Text>
+            ) : null}
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#ccc"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#ccc"
+                secureTextEntry={!showPassword} // Toggle password visibility
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Icon
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={24}
+                  color="gray"
+                />
+              </TouchableOpacity>
+            </View>
 
             {/* Login Button */}
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Login</Text>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleLogin}
+              disabled={loading} // Disable button when loading
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Forgot Password link */}
+            <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
             {/* Sign Up link */}
-            <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-              <Text style={styles.signInText}>Don't have an account? Sign-up</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
+              <Text style={styles.signInText}>
+                Don't have an account? Sign-up
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -146,6 +228,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#333',
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    padding: 0,
+    paddingBottom: 10,
+  },
   button: {
     backgroundColor: '#007bff',
     width: '100%',
@@ -158,6 +252,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  forgotPasswordText: {
+    color: '#007bff',
+    textDecorationLine: 'underline',
+    marginBottom: 15,
   },
   signInText: {
     color: '#007bff',

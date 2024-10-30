@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Background from '../../Components/Bg'; // Assuming you have a background component
 import NavBarWork from '../../Components/NavBarWork';
 import { useNavigation } from '@react-navigation/native';
-
+import axiosInstance from '../../axiosInstance';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,13 +52,51 @@ const EditWorkProfile = () => {
     }
   };
 
+  // Handle form submission
+  const handleSubmit = async () => {
+    const formData = new FormData();
+    formData.append('projectName', projectName);
+    formData.append('description', description);
+    formData.append('skills', skills.join(',')); // Convert skills array to a comma-separated string
+  
+    // If an image is selected, append it to the formData
+    if (image) {
+      formData.append('image', {
+        uri: image,
+        type: 'image/jpeg', // Adjust image type as needed
+        name: 'project-image.jpg',
+      });
+    }
+  
+    try {
+      const response = await axiosInstance.post('/project/create', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+  
+      // Access response data directly
+      const result = response.data;
+      console.log('Project uploaded successfully:', result);
+      console.log('result');
+      
+      if (response.status === 200) {
+        navigation.navigate('WorkHomePage'); // Navigate back after successful upload
+      } else {
+        console.error('Error uploading project:', result);
+      }
+    } catch (error) {
+      console.error('Error uploading project:', error);
+    }
+  };
+  
   return (
     <Background>
       <Pressable
-          style={styles.backButton}
-          onPress={() => navigation.navigate('WorkHomePage')}
-        >
-          <Icon name="arrow-back-circle-outline" size={34} color="#fff" />
+        style={styles.backButton}
+        onPress={() => navigation.navigate('WorkHomePage')}
+      >
+        <Icon name="arrow-back-circle-outline" size={34} color="#fff" />
       </Pressable>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -124,6 +162,11 @@ const EditWorkProfile = () => {
             <Text style={styles.addSkillButtonText}>+ Add skills</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Submit button */}
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <Text style={styles.submitButtonText}>Submit</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <NavBarWork />
@@ -229,6 +272,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: width * 0.04,
+  },
+  submitButton: {
+    backgroundColor: '#FA9746',
+    padding: width * 0.04,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: height * 0.03,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: width * 0.05,
   },
 });
 

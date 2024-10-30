@@ -53,7 +53,7 @@ const AccType = () => {
 
           <GlassMorphismButton
             text="I want to work"
-            onPress={() => navigation.navigate('FreelanceLogin')}
+            onPress={() => navigation.navigate('FreelanceSignup')}
           />
 
           {/* Middle Image */}

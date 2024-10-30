@@ -1,9 +1,11 @@
 import React, { useState } from 'react'; 
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, ScrollView, Pressable, Linking, Button} from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, ScrollView, Pressable, Linking, Button, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Background from '../../Components/Bg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import axiosInstance from "../../axiosInstance";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CustomCheckBox = ({ isChecked, onValueChange }) => {
   return (
@@ -14,15 +16,62 @@ const CustomCheckBox = ({ isChecked, onValueChange }) => {
 };
 
 const Coupons = () => {
-    const navigation = useNavigation();
+  const navigation = useNavigation();
   const [image, setImage] = useState(null);
   const [offers, setOffers] = useState('');
   const [offerDetails, setOfferDetails] = useState('');
   const [terms, setTerms] = useState('');
   const [isChecked, setIsChecked] = useState(false);
   const [checkboxError, setCheckboxError] = useState(''); // State for error message
-
+  const [loading, setLoading] = useState(false); // State for loading indicator
   
+  const handleCreateCoupon = async () => {
+    if (!isChecked) {
+      setCheckboxError("You must agree to the terms to proceed.");
+    } else if (!offers.trim()) {
+      Alert.alert("Error", "Offers cannot be empty.");
+    } else if (!offerDetails.trim()) {
+      Alert.alert("Error", "Offer details cannot be empty.");
+    } else if (!terms.trim()) {
+      Alert.alert("Error", "Terms & Conditions cannot be empty.");
+    } else {
+      setCheckboxError("");
+      setLoading(true);  // Start loading
+    }
+
+    const couponData = {
+      offers,
+      offerDetails,
+      terms,
+    };
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        Alert.alert("Error", "No token found. Please log in.");
+        return;
+      }
+
+      const response = await axiosInstance.post("/adcoupon/coupon", couponData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 200) {
+        navigation.navigate("CouponsPackage", { offers, offerDetails, terms });
+      }
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        Alert.alert("Session expired", "Please log in again.");
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again later.");
+      }
+    } finally {
+      setLoading(false);  // End loading
+    }
+  };
+
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -33,15 +82,6 @@ const Coupons = () => {
 
     if (!result.canceled) {
       setImage(result.uri);
-    }
-  };
-
-  const handleCreateCoupon = () => {
-    if (!isChecked) {
-      setCheckboxError('You must agree to the terms to proceed.');
-    } else {
-      setCheckboxError(''); // Clear the error if checkbox is checked
-      navigation.navigate('CouponsPackage'); // Proceed with navigation
     }
   };
 
@@ -66,8 +106,7 @@ const Coupons = () => {
           ) : (
             <>
               <Icon name="add-outline" size={40} color="#000" />
-              {/* Watermark text */}
-              <Text style={[styles.watermark, { fontFamily: 'Roboto' }]}>FINT</Text>
+              <Text style={styles.watermark}>FINT</Text>
             </>
           )}
         </TouchableOpacity>
@@ -128,21 +167,23 @@ const Coupons = () => {
             <Text style={styles.linkText}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* Checkbox Error Message */}
         {checkboxError ? <Text style={styles.errorText}>{checkboxError}</Text> : null}
-      
 
-{/* Create Ads Button */}
-<Button 
-  title="Create Coupons" 
-  onPress={handleCreateCoupon} 
-  color={styles.createButton.backgroundColor} 
-/>
-
+        {/* Create Coupons Button */}
+        <TouchableOpacity 
+          style={styles.createButton} 
+          onPress={handleCreateCoupon} 
+          disabled={loading} // Disable button when loading
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={styles.createButtonText}>Create Coupon</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
-
-    
     </Background>
   );
 };
@@ -177,7 +218,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     alignSelf: 'center',
-    position: 'relative', // Make it relative for watermark positioning
   },
   uploadedImage: {
     width: 150,
@@ -186,12 +226,11 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    color: 'rgba(0, 0, 0, 0.3)', // Light watermark
-    fontSize: 20, // Increased font size
+    color: 'rgba(0, 0, 0, 0.3)',
+    fontSize: 20,
     fontWeight: 'bold',
-    bottom: 10, // Position at the bottom
-    right: 10, // Position at the right
-    fontFamily: 'Roboto-Medium', // Apply the custom font
+    bottom: 10,
+    right: 10,
   },
   uploadText: {
     color: 'white',
@@ -233,44 +272,47 @@ const styles = StyleSheet.create({
     color: 'white',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FA9746', 
+    borderColor: '#FA9746',
     textAlignVertical: 'top',
   },
+  agreementSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
   checkboxContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#007BFF',
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: '#fff',
+    marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
   },
   checkbox: {
     width: 12,
     height: 12,
   },
   checked: {
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
   },
   agreementText: {
     fontSize: 16,
-    color: '#fff',
-  },
-  agreementSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-       flexWrap: 'wrap',
-    marginBottom: 20,
+    color: 'white',
   },
   linkText: {
-    color: '#00BFFF',
+    fontSize: 16,
+    color: '#FA9746',
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 20,
   },
   createButton: {
     backgroundColor: '#007BFF',
     padding: 15,
-    alignItems: 'center',
     borderRadius: 10,
+    alignItems: 'center',
     marginBottom: 20,
   },
   createButtonText: {
@@ -278,18 +320,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#FF0000',
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: 'center',
-  },
 });
 
 export default Coupons;
-

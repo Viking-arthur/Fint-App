@@ -1,42 +1,97 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, Pressable, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, StyleSheet, Alert, Pressable, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Background from '../../Components/Bg';
 import Icon from 'react-native-vector-icons/Ionicons';
+import axiosInstance from "../../axiosInstance";
 
-const Otp = () => {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+
+const Otp = ({ route }) => {
+  const { email } = route.params;
+  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(30);
+  const [resendVisible, setResendVisible] = useState(false);
   const inputRefs = useRef([]);
   const navigation = useNavigation();
 
-  // Handle input change
+  
+  useEffect(() => {
+    if (timer > 0) {
+      const intervalId = setInterval(() => {
+        setTimer((prevTimer) => prevTimer - 1);
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+    } else {
+      setResendVisible(true);
+    }
+  }, [timer]);
+
+
   const handleChange = (text, index) => {
     if (/^\d*$/.test(text)) {
       let newOtp = [...otp];
       newOtp[index] = text;
       setOtp(newOtp);
-
-      // Move focus to next field if a digit is entered
-      if (text && index < 5) {
+      if (text && index < 3) {
         inputRefs.current[index + 1].focus();
       }
     }
   };
 
-  // Handle key press to enable backspace navigation
+  
   const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && otp[index] === '' && index > 0) {
+    if (e.nativeEvent.key === "Backspace" && otp[index] === "" && index > 0) {
       inputRefs.current[index - 1].focus();
     }
   };
 
-  // Handle OTP submission
-  const handleSubmit = () => {
-    const otpValue = otp.join('');
-    if (otpValue.length === 6) {
-      Alert.alert('OTP Submitted', `Entered OTP: ${otpValue}`);
+  const handleSubmit = async () => {
+    const otpValue = otp.join("");
+    if (otpValue.length === 4) {
+      setLoading(true);
+      try {
+        const response = await axiosInstance.post(`/otp/verify-otp/${email}`, {
+          otp: otpValue,
+        });
+        if (response.status === 200) {
+          Alert.alert("Success", response.data.message);
+          navigation.navigate("Home");
+        } else {
+          Alert.alert("Error", response.data.message || "Invalid OTP");
+        }
+      } catch (error) {
+        const errorMessage =
+          error.response?.data?.message ||
+          "Something went wrong. Please try again.";
+        Alert.alert("Error", errorMessage);
+      } finally {
+        setLoading(false);
+      }
     } else {
-      Alert.alert('Invalid OTP', 'Please enter a 6-digit OTP.');
+      Alert.alert("Invalid OTP", "Please enter a 4-digit OTP.");
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.post(`/otp/resend-otp`, { email });
+      if (response.status === 200) {
+        Alert.alert("Success", "OTP has been resent to your email.");
+        setTimer(30);
+        setResendVisible(false);
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to resend OTP");
+      }
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        "Something went wrong. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,15 +122,34 @@ const Otp = () => {
           ))}
         </View>
 
-        {/* Add Image */}
-        <Image
-          source={require('../../assets/otp.png')}
-          style={styles.image}
-        />
+        
+        <Text style={styles.timer}>
+          {timer > 0 ? `Time left: ${timer} sec` : "Time is up!"}
+        </Text>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Submit</Text>
+        {resendVisible && (
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={handleResendOtp}
+            disabled={loading}
+          >
+            <Text style={styles.resendText}>Resend OTP</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.submitButton, loading && { backgroundColor: "gray" }]}
+          onPress={handleSubmit}
+          disabled={loading || otp.some((d) => d === "")}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>Submit</Text>
+          )}
         </TouchableOpacity>
+        
+        <Image source={require("../../assets/otp.png")} style={styles.image} />
       </View>
     </Background>
   );
@@ -115,6 +189,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     backgroundColor: 'grey',
     marginHorizontal: 5,
+  },
+  timer: {
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  resendButton: {
+    backgroundColor: "#41c0f9",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  resendText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
   },
   image: {
     width: 200,

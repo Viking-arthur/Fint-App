@@ -6,14 +6,16 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Keyboard,  // Import Keyboard
+  Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
-
 const { width } = Dimensions.get('window');
+import { useRoute } from '@react-navigation/native';
 
 const NavBarWork = () => {
+  const route = useRoute();
+  const { userId } = route.params || {};  // Get the userId from route parameters
   const navigation = useNavigation();
   const navigationState = useNavigationState((state) => state);
 
@@ -22,31 +24,22 @@ const NavBarWork = () => {
 
   const navBarAnimation = useRef(new Animated.Value(1 * (width / 3))).current;
 
-  // Define animated values for each button's scale and translateY
   const buttonAnimations = [
     useRef(new Animated.Value(1)).current, // Button 1 scale (Profile)
     useRef(new Animated.Value(1)).current, // Button 2 scale (Home)
-    useRef(new Animated.Value(1)).current, // Button 3 scale (Add)
+    useRef(new Animated.Value(1)).current, // Button 3 scale (Edit)
   ];
 
   const translateYAnimations = [
     useRef(new Animated.Value(0)).current, // Button 1 translateY (Profile)
     useRef(new Animated.Value(0)).current, // Button 2 translateY (Home)
-    useRef(new Animated.Value(0)).current, // Button 3 translateY (Add)
+    useRef(new Animated.Value(0)).current, // Button 3 translateY (Edit)
   ];
 
   useEffect(() => {
-    // Add listeners for keyboard events
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
 
-    // Cleanup listeners on component unmount
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
@@ -54,15 +47,10 @@ const NavBarWork = () => {
   }, []);
 
   useEffect(() => {
-    // Determine which button should be selected based on current route
     const currentRoute = navigationState.routes[navigationState.index].name;
-
     switch (currentRoute) {
       case 'WorkProfile':
         setSelectedNavButton(0);
-        break;
-      case 'WorkHomePage':
-        setSelectedNavButton(1);
         break;
       case 'EditWorkProfile':
         setSelectedNavButton(2);
@@ -73,7 +61,6 @@ const NavBarWork = () => {
   }, [navigationState]);
 
   useEffect(() => {
-    // Reset all button animations
     buttonAnimations.forEach((anim) => {
       Animated.timing(anim, {
         toValue: 1,
@@ -82,7 +69,7 @@ const NavBarWork = () => {
         useNativeDriver: true,
       }).start();
     });
-    
+
     translateYAnimations.forEach((anim) => {
       Animated.timing(anim, {
         toValue: 0,
@@ -92,7 +79,6 @@ const NavBarWork = () => {
       }).start();
     });
 
-    // Animate the nav bar indicator and selected button
     Animated.parallel([
       Animated.timing(navBarAnimation, {
         toValue: selectedNavButton * (width / 3),
@@ -120,14 +106,11 @@ const NavBarWork = () => {
   const handleNavButtonPress = (index, targetRoute) => {
     if (index === selectedNavButton) return;
 
-    // Navigate to the target route
-    navigation.navigate(targetRoute);
-
-    // Update selected button state
+    // Pass userId as a parameter when navigating
+    navigation.navigate(targetRoute, { userId });
     setSelectedNavButton(index);
   };
 
-  // Conditionally render the NavBar based on keyboard visibility
   if (isKeyboardVisible) {
     return null; // Hide NavBar when keyboard is visible
   }
@@ -157,23 +140,7 @@ const NavBarWork = () => {
           />
         </Animated.View>
       </Pressable>
-      <Pressable
-        style={styles.navButtonContainer}
-        onPress={() => handleNavButtonPress(1, 'WorkHomePage')}
-      >
-        <Animated.View
-          style={[
-            styles.navButton,
-            { transform: [{ scale: buttonAnimations[1] }, { translateY: translateYAnimations[1] }] },
-          ]}
-        >
-          <Icon
-            name="home"
-            size={30}
-            color={selectedNavButton === 1 ? '#6495ed' : '#333'}
-          />
-        </Animated.View>
-      </Pressable>
+
       <Pressable
         style={styles.navButtonContainer}
         onPress={() => handleNavButtonPress(2, 'EditWorkProfile')}
